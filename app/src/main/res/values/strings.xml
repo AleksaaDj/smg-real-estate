@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">SMG Real Estate</string>
+    <string name="screen_listings_title">Listings</string>
 </resources>
