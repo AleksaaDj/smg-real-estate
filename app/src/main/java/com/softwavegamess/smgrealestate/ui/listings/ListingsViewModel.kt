@@ -15,7 +15,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -26,6 +28,12 @@ class ListingsViewModel @Inject constructor(
     private val toggleBookmark: ToggleBookmarkUseCase,
 ) : ViewModel() {
 
+    private val loaded = MutableStateFlow<List<Property>>(emptyList())
+    private val searchQuery = MutableStateFlow("")
+    private val isLoading = MutableStateFlow(true)
+    private val loadError = MutableStateFlow<String?>(null)
+    private val remoteListWasEmpty = MutableStateFlow(false)
+
     private val _state = MutableStateFlow(ListingsUiState())
     val state: StateFlow<ListingsUiState> = _state.asStateFlow()
 
@@ -33,49 +41,72 @@ class ListingsViewModel @Inject constructor(
     val userMessages = _userMessages.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
+            combine(
+                loaded,
+                searchQuery,
+                isLoading,
+                loadError,
+                remoteListWasEmpty,
+            ) { loadedList, query, loading, err, remoteEmpty ->
+                val filtered = when {
+                    loading || err != null -> emptyList()
+                    else -> loadedList.matchingSearch(query)
+                }
+                ListingsUiState(
+                    isLoading = loading,
+                    loadError = err,
+                    searchQuery = query,
+                    properties = filtered,
+                    remoteListWasEmpty = remoteEmpty,
+                )
+            }.collect { _state.value = it }
+        }
         load()
     }
 
     fun load() {
         viewModelScope.launch {
-            _state.value = ListingsUiState(isLoading = true, properties = emptyList(), loadError = null)
+            isLoading.value = true
+            loadError.value = null
             getProperties().fold(
                 onSuccess = { list ->
-                    _state.value = ListingsUiState(
-                        isLoading = false,
-                        properties = list,
-                        loadError = null,
-                    )
+                    loaded.value = list
+                    remoteListWasEmpty.value = list.isEmpty()
+                    isLoading.value = false
                 },
                 onFailure = { error ->
-                    _state.value = ListingsUiState(
-                        isLoading = false,
-                        properties = emptyList(),
-                        loadError = error.toLoadMessage(),
-                    )
+                    loaded.value = emptyList()
+                    remoteListWasEmpty.value = false
+                    loadError.value = error.toLoadMessage()
+                    isLoading.value = false
                 },
             )
         }
     }
 
+    fun onSearchQueryChange(raw: String) {
+        searchQuery.value = raw
+    }
+
     fun onBookmarkClicked(property: Property) {
         viewModelScope.launch {
-            val snapshot = _state.value.properties
+            val snapshot = loaded.value
             val optimistic = snapshot.map { item ->
                 if (item.id == property.id) item.copy(isBookmarked = !item.isBookmarked) else item
             }
-            _state.setProperties(optimistic)
+            loaded.update { optimistic }
 
             toggleBookmark(property.id).fold(
                 onSuccess = { bookmarked ->
-                    _state.setProperties(
-                        _state.value.properties.map { item ->
+                    loaded.update { list ->
+                        list.map { item ->
                             if (item.id == property.id) item.copy(isBookmarked = bookmarked) else item
-                        },
-                    )
+                        }
+                    }
                 },
                 onFailure = {
-                    _state.setProperties(snapshot)
+                    loaded.value = snapshot
                     _userMessages.trySend(appContext.getString(R.string.bookmark_update_failed))
                 },
             )
@@ -86,9 +117,5 @@ class ListingsViewModel @Inject constructor(
         is IOException -> appContext.getString(R.string.listings_error_network)
         is HttpException -> appContext.getString(R.string.listings_error_http)
         else -> appContext.getString(R.string.listings_error_unknown)
-    }
-
-    private fun MutableStateFlow<ListingsUiState>.setProperties(properties: List<Property>) {
-        value = value.copy(properties = properties)
     }
 }

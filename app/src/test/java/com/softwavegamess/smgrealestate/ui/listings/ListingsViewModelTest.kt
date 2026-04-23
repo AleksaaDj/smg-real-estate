@@ -117,4 +117,46 @@ class ListingsViewModelTest {
 
         assertTrue(viewModel.state.value.properties.single().isBookmarked)
     }
+
+    @Test
+    fun searchNarrowsList() = runTest {
+        val a = sampleProperty.copy(id = "1", title = "Lake view")
+        val b = sampleProperty.copy(id = "2", title = "City studio")
+        val get = mockk<GetPropertiesUseCase>()
+        coEvery { get() } returns Result.success(listOf(a, b))
+        val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
+
+        val viewModel = ListingsViewModel(context, get, toggle)
+
+        viewModel.onSearchQueryChange("studio")
+
+        assertEquals(listOf(b), viewModel.state.value.properties)
+    }
+
+    @Test
+    fun loadSuccessEmptyMarksRemoteEmpty() = runTest {
+        val get = mockk<GetPropertiesUseCase>()
+        coEvery { get() } returns Result.success(emptyList())
+        val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
+
+        val viewModel = ListingsViewModel(context, get, toggle)
+
+        assertTrue(viewModel.state.value.remoteListWasEmpty)
+        assertTrue(viewModel.state.value.properties.isEmpty())
+    }
+
+    @Test
+    fun bookmarkWorksWhileSearchActive() = runTest {
+        val get = mockk<GetPropertiesUseCase>()
+        coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val toggle = mockk<ToggleBookmarkUseCase>()
+        coEvery { toggle(sampleProperty.id) } returns Result.success(true)
+
+        val viewModel = ListingsViewModel(context, get, toggle)
+        viewModel.onSearchQueryChange("Title")
+
+        viewModel.onBookmarkClicked(sampleProperty)
+
+        assertTrue(viewModel.state.value.properties.single().isBookmarked)
+    }
 }

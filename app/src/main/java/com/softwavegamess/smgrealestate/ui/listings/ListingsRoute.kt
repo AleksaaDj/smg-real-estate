@@ -6,13 +6,22 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -57,6 +66,7 @@ fun ListingsRoute(
         snackbarHostState = snackbarHostState,
         onRetry = viewModel::load,
         onBookmarkClick = viewModel::onBookmarkClicked,
+        onSearchQueryChange = viewModel::onSearchQueryChange,
         modifier = modifier,
     )
 }
@@ -68,6 +78,7 @@ fun ListingsScreen(
     snackbarHostState: SnackbarHostState,
     onRetry: () -> Unit,
     onBookmarkClick: (Property) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -77,78 +88,151 @@ fun ListingsScreen(
             TopAppBar(title = { Text(text = stringResource(R.string.screen_listings_title)) })
         },
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-
-                state.loadError != null -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
+        when {
+            state.loadError != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = state.loadError,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Button(
+                        onClick = onRetry,
+                        modifier = Modifier.padding(top = 16.dp),
                     ) {
-                        Text(
-                            text = state.loadError,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Button(
-                            onClick = onRetry,
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) {
-                            Text(text = stringResource(R.string.action_retry))
-                        }
+                        Text(text = stringResource(R.string.action_retry))
                     }
                 }
+            }
 
-                state.properties.isEmpty() -> {
-                    Column(
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                ) {
+                    ListingsSearchField(
+                        query = state.searchQuery,
+                        onQueryChange = onSearchQueryChange,
+                    )
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .weight(1f)
+                            .fillMaxWidth(),
                     ) {
-                        Text(
-                            text = stringResource(R.string.listings_empty),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Button(
-                            onClick = onRetry,
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) {
-                            Text(text = stringResource(R.string.action_retry))
-                        }
-                    }
-                }
+                        when {
+                            state.isLoading -> {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            }
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(
-                            items = state.properties,
-                            key = { it.id },
-                        ) { property ->
-                            PropertyCard(
-                                property = property,
-                                onBookmarkClick = { onBookmarkClick(property) },
-                            )
+                            state.properties.isEmpty() -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(24.dp),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    val message = when {
+                                        state.remoteListWasEmpty ->
+                                            stringResource(R.string.listings_empty)
+                                        state.searchQuery.isNotBlank() ->
+                                            stringResource(R.string.listings_search_none)
+                                        else -> stringResource(R.string.listings_empty)
+                                    }
+                                    Text(
+                                        text = message,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Button(
+                                        onClick = onRetry,
+                                        modifier = Modifier.padding(top = 16.dp),
+                                    ) {
+                                        Text(text = stringResource(R.string.action_retry))
+                                    }
+                                }
+                            }
+
+                            else -> {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        start = 12.dp,
+                                        end = 12.dp,
+                                        top = 4.dp,
+                                        bottom = 12.dp,
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(
+                                        items = state.properties,
+                                        key = { it.id },
+                                    ) { property ->
+                                        PropertyCard(
+                                            property = property,
+                                            onBookmarkClick = { onBookmarkClick(property) },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ListingsSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    val shape = RoundedCornerShape(14.dp)
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        placeholder = {
+            Text(
+                text = stringResource(R.string.listings_search_hint),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.cd_search_clear),
+                    )
+                }
+            }
+        },
+        singleLine = true,
+        shape = shape,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+        ),
+    )
 }
 
 private fun previewProperty(
@@ -175,6 +259,7 @@ private fun ListingsScreenLoadingPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onSearchQueryChange = {},
         )
     }
 }
@@ -193,6 +278,7 @@ private fun ListingsScreenErrorPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onSearchQueryChange = {},
         )
     }
 }
@@ -203,10 +289,16 @@ private fun ListingsScreenErrorPreview() {
 private fun ListingsScreenEmptyPreview() {
     SMGRealEstateTheme(dynamicColor = false) {
         ListingsScreen(
-            state = ListingsUiState(isLoading = false, properties = emptyList(), loadError = null),
+            state = ListingsUiState(
+                isLoading = false,
+                properties = emptyList(),
+                loadError = null,
+                remoteListWasEmpty = true,
+            ),
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onSearchQueryChange = {},
         )
     }
 }
@@ -228,6 +320,7 @@ private fun ListingsScreenListPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onSearchQueryChange = {},
         )
     }
 }
@@ -252,6 +345,28 @@ private fun ListingsScreenListDarkPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onSearchQueryChange = {},
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(name = "Listings — search miss", showBackground = true)
+@Composable
+private fun ListingsScreenSearchMissPreview() {
+    SMGRealEstateTheme(dynamicColor = false) {
+        ListingsScreen(
+            state = ListingsUiState(
+                isLoading = false,
+                properties = emptyList(),
+                loadError = null,
+                searchQuery = "zzz",
+                remoteListWasEmpty = false,
+            ),
+            snackbarHostState = remember { SnackbarHostState() },
+            onRetry = {},
+            onBookmarkClick = {},
+            onSearchQueryChange = {},
         )
     }
 }

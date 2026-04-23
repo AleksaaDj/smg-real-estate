@@ -9,6 +9,7 @@ import com.softwavegamess.smgrealestate.domain.model.Property
 import com.softwavegamess.smgrealestate.domain.repository.PropertyRepository
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -28,6 +29,7 @@ class PropertyRepositoryImpl @Inject constructor(
                 .mapNotNull { mapper.map(it) }
                 .sortedWith(
                     compareBy<Property> { it.listingType.toSortRank() }
+                        .thenBy { it.title.lowercase(Locale.ROOT) }
                         .thenBy { it.id },
                 )
                 .map { property ->

@@ -6,4 +6,6 @@ data class ListingsUiState(
     val isLoading: Boolean = true,
     val properties: List<Property> = emptyList(),
     val loadError: String? = null,
+    val searchQuery: String = "",
+    val remoteListWasEmpty: Boolean = false,
 )
