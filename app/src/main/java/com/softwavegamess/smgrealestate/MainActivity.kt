@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.softwavegamess.smgrealestate.ui.listings.ListingsScaffold
+import com.softwavegamess.smgrealestate.ui.listings.ListingsRoute
 import com.softwavegamess.smgrealestate.ui.theme.SMGRealEstateTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SMGRealEstateTheme {
-                ListingsScaffold()
+                ListingsRoute()
             }
         }
     }
