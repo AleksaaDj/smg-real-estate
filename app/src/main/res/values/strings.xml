@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">SMG Real Estate</string>
     <string name="screen_listings_title">Listings</string>
+    <string name="action_retry">Retry</string>
+    <string name="listings_empty">No listings to show.</string>
+    <string name="listings_error_network">Couldn\'t load listings. Check your connection.</string>
+    <string name="listings_error_http">Couldn\'t load listings. Server returned an error.</string>
+    <string name="listings_error_unknown">Couldn\'t load listings.</string>
+    <string name="price_on_request">Price on request</string>
+    <string name="bookmark_update_failed">Couldn\'t update bookmark.</string>
+    <string name="cd_bookmark_add">Save listing</string>
+    <string name="cd_bookmark_remove">Remove saved listing</string>
 </resources>
