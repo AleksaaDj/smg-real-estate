@@ -90,25 +90,13 @@ fun ListingsScreen(
     ) { innerPadding ->
         when {
             state.loadError != null -> {
-                Column(
+                ListingsEmptyBlock(
+                    message = state.loadError,
+                    onRetry = onRetry,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = state.loadError,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Button(
-                        onClick = onRetry,
-                        modifier = Modifier.padding(top = 16.dp),
-                    ) {
-                        Text(text = stringResource(R.string.action_retry))
-                    }
-                }
+                        .padding(innerPadding),
+                )
             }
 
             else -> {
@@ -132,31 +120,18 @@ fun ListingsScreen(
                             }
 
                             state.properties.isEmpty() -> {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(24.dp),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    val message = when {
-                                        state.remoteListWasEmpty ->
-                                            stringResource(R.string.listings_empty)
-                                        state.searchQuery.isNotBlank() ->
-                                            stringResource(R.string.listings_search_none)
-                                        else -> stringResource(R.string.listings_empty)
-                                    }
-                                    Text(
-                                        text = message,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                    Button(
-                                        onClick = onRetry,
-                                        modifier = Modifier.padding(top = 16.dp),
-                                    ) {
-                                        Text(text = stringResource(R.string.action_retry))
-                                    }
+                                val message = when {
+                                    state.remoteListWasEmpty ->
+                                        stringResource(R.string.listings_empty)
+                                    state.searchQuery.isNotBlank() ->
+                                        stringResource(R.string.listings_search_none)
+                                    else -> stringResource(R.string.listings_empty)
                                 }
+                                ListingsEmptyBlock(
+                                    message = message,
+                                    onRetry = onRetry,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             }
 
                             else -> {
@@ -185,6 +160,32 @@ fun ListingsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ListingsEmptyBlock(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.padding(top = 16.dp),
+        ) {
+            Text(text = stringResource(R.string.action_retry))
         }
     }
 }
