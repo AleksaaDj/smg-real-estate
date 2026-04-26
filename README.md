@@ -1,7 +1,12 @@
 # SMG Real Estate
 
-Small Android App for property listings.
+Small Android App for property listings. (Compose + Material 3 + Hilt). Uses a public mock JSON API for property data and Room for bookmarks.
 
-Open in Android Studio, sync Gradle, run the `app` configuration on an emulator or device (API 26+).
+**Running it**  
+Open the project in Android Studio, sync Gradle, run `app` on an emulator or phone (API 26+). Needs network for the first load.
 
-Stack from the first milestone: Kotlin, Jetpack Compose, Material 3, Hilt. Network, persistence, and the rest of the feature work land in follow-up commits.
+**Firebase**  
+`app/google-services.json` has to match your Firebase app id (`applicationId` in Gradle). Analytics: bookmark toggles and search (debounced) fire custom events.
+
+**API**  
+Remote base URL lives in the Hilt network module.

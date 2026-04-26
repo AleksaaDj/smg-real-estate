@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "847028309629",
+    "project_id": "smg-real-estate",
+    "storage_bucket": "smg-real-estate.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:847028309629:android:32ac7f6611ef128d712b14",
+        "android_client_info": {
+          "package_name": "com.softwavegamess.smgrealestate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4LSoNvYBMn6b32xWqO9wefhwmp8xonQs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

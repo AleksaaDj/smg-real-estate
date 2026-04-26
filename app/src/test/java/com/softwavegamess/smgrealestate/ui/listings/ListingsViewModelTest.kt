@@ -9,6 +9,7 @@ import com.softwavegamess.smgrealestate.domain.model.Address
 import com.softwavegamess.smgrealestate.domain.model.ListingTier
 import com.softwavegamess.smgrealestate.domain.model.Price
 import com.softwavegamess.smgrealestate.domain.model.Property
+import com.softwavegamess.smgrealestate.analytics.AppAnalytics
 import com.softwavegamess.smgrealestate.domain.usecase.GetPropertiesUseCase
 import com.softwavegamess.smgrealestate.domain.usecase.ToggleBookmarkUseCase
 import io.mockk.coEvery
@@ -38,6 +39,8 @@ class ListingsViewModelTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    private val analytics: AppAnalytics = mockk(relaxed = true)
+
     private val sampleProperty = Property(
         id = "1",
         title = "Title",
@@ -54,7 +57,7 @@ class ListingsViewModelTest {
         coEvery { get() } returns Result.success(listOf(sampleProperty))
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         assertFalse(viewModel.state.value.isLoading)
         assertNull(viewModel.state.value.loadError)
@@ -67,7 +70,7 @@ class ListingsViewModelTest {
         coEvery { get() } returns Result.failure(IOException())
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         assertFalse(viewModel.state.value.isLoading)
         assertEquals(context.getString(R.string.listings_error_network), viewModel.state.value.loadError)
@@ -82,7 +85,7 @@ class ListingsViewModelTest {
         coEvery { get() } returns Result.failure(HttpException(response))
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         assertEquals(context.getString(R.string.listings_error_http), viewModel.state.value.loadError)
     }
@@ -94,7 +97,7 @@ class ListingsViewModelTest {
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.failure(RuntimeException("db"))
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         viewModel.userMessages.test {
             viewModel.onBookmarkClicked(sampleProperty)
@@ -111,7 +114,7 @@ class ListingsViewModelTest {
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.success(true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         viewModel.onBookmarkClicked(sampleProperty)
 
@@ -126,7 +129,7 @@ class ListingsViewModelTest {
         coEvery { get() } returns Result.success(listOf(a, b))
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         viewModel.onSearchQueryChange("studio")
 
@@ -139,7 +142,7 @@ class ListingsViewModelTest {
         coEvery { get() } returns Result.success(emptyList())
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
 
         assertTrue(viewModel.state.value.remoteListWasEmpty)
         assertTrue(viewModel.state.value.properties.isEmpty())
@@ -152,7 +155,7 @@ class ListingsViewModelTest {
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.success(true)
 
-        val viewModel = ListingsViewModel(context, get, toggle)
+        val viewModel = ListingsViewModel(context, get, toggle, analytics)
         viewModel.onSearchQueryChange("Title")
 
         viewModel.onBookmarkClicked(sampleProperty)

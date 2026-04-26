@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.softwavegamess.smgrealestate.R
+import com.softwavegamess.smgrealestate.analytics.AppAnalytics
 import com.softwavegamess.smgrealestate.domain.model.Property
 import com.softwavegamess.smgrealestate.domain.usecase.GetPropertiesUseCase
 import com.softwavegamess.smgrealestate.domain.usecase.ToggleBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.FlowPreview
 import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -16,16 +18,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
+private const val SearchAnalyticsDebounceMs = 350L
+
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class ListingsViewModel @Inject constructor(
     @param:ApplicationContext private val appContext: Context,
     private val getProperties: GetPropertiesUseCase,
     private val toggleBookmark: ToggleBookmarkUseCase,
+    private val analytics: AppAnalytics,
 ) : ViewModel() {
 
     private val loaded = MutableStateFlow<List<Property>>(emptyList())
@@ -41,6 +49,16 @@ class ListingsViewModel @Inject constructor(
     val userMessages = _userMessages.receiveAsFlow()
 
     init {
+        viewModelScope.launch {
+            searchQuery
+                .debounce(SearchAnalyticsDebounceMs)
+                .distinctUntilChanged()
+                .collect { q ->
+                    if (q.isNotBlank()) {
+                        analytics.logListingSearch(q.length)
+                    }
+                }
+        }
         viewModelScope.launch {
             combine(
                 loaded,
@@ -99,6 +117,7 @@ class ListingsViewModel @Inject constructor(
 
             toggleBookmark(property.id).fold(
                 onSuccess = { bookmarked ->
+                    analytics.logBookmarkToggle(property.id, bookmarked)
                     loaded.update { list ->
                         list.map { item ->
                             if (item.id == property.id) item.copy(isBookmarked = bookmarked) else item
