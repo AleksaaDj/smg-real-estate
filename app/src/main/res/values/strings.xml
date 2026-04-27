@@ -6,6 +6,12 @@
     <string name="listings_search_hint">Search by title or address</string>
     <string name="listings_search_none">No listings match that search.</string>
     <string name="cd_search_clear">Clear search</string>
+    <string name="cd_sort_menu">Sort listings</string>
+    <string name="listings_sort_sheet_title">Sort by</string>
+    <string name="sort_default">Featured</string>
+    <string name="sort_price_asc">Price · low to high</string>
+    <string name="sort_price_desc">Price · high to low</string>
+    <string name="sort_title_az">Title · A–Z</string>
     <string name="listings_error_network">Couldn\'t load listings. Check your connection.</string>
     <string name="listings_error_http">Couldn\'t load listings. Server returned an error.</string>
     <string name="listings_error_unknown">Couldn\'t load listings.</string>

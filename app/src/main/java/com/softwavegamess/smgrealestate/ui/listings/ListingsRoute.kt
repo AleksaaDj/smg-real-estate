@@ -5,18 +5,30 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,11 +38,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -67,6 +81,7 @@ fun ListingsRoute(
         onRetry = viewModel::load,
         onBookmarkClick = viewModel::onBookmarkClicked,
         onSearchQueryChange = viewModel::onSearchQueryChange,
+        onSortOptionChange = viewModel::onSortOptionChange,
         modifier = modifier,
     )
 }
@@ -79,13 +94,16 @@ fun ListingsScreen(
     onRetry: () -> Unit,
     onBookmarkClick: (Property) -> Unit,
     onSearchQueryChange: (String) -> Unit,
+    onSortOptionChange: (ListingSortOption) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(title = { Text(text = stringResource(R.string.screen_listings_title)) })
+            CenterAlignedTopAppBar(
+                title = { Text(text = stringResource(R.string.screen_listings_title)) },
+            )
         },
     ) { innerPadding ->
         when {
@@ -100,14 +118,25 @@ fun ListingsScreen(
             }
 
             else -> {
+                val listState = rememberLazyListState()
+                LaunchedEffect(state.sortOption, state.searchQuery) {
+                    if (state.properties.isNotEmpty()) {
+                        listState.scrollToItem(0)
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
                 ) {
-                    ListingsSearchField(
+                    ListingsSearchWithSort(
                         query = state.searchQuery,
                         onQueryChange = onSearchQueryChange,
+                        currentSort = state.sortOption,
+                        onSortOptionChange = onSortOptionChange,
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                     )
                     Box(
                         modifier = Modifier
@@ -136,6 +165,7 @@ fun ListingsScreen(
 
                             else -> {
                                 LazyColumn(
+                                    state = listState,
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(
                                         start = 12.dp,
@@ -164,6 +194,136 @@ fun ListingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ListingsSearchWithSort(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    currentSort: ListingSortOption,
+    onSortOptionChange: (ListingSortOption) -> Unit,
+) {
+    var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.listings_search_hint),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cd_search_clear),
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            shape = shape,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+            ),
+        )
+        FilledTonalIconButton(
+            onClick = { showSortSheet = true },
+        ) {
+            Icon(
+                imageVector = Icons.Filled.SwapVert,
+                contentDescription = stringResource(R.string.cd_sort_menu),
+            )
+        }
+    }
+    if (showSortSheet) {
+        ListingsSortBottomSheet(
+            currentSort = currentSort,
+            onOptionSelected = { option ->
+                onSortOptionChange(option)
+            },
+            onDismiss = { },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ListingsSortBottomSheet(
+    currentSort: ListingSortOption,
+    onOptionSelected: (ListingSortOption) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Text(
+            text = stringResource(R.string.listings_sort_sheet_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        )
+        Spacer(Modifier.height(4.dp))
+        ListingSortOption.entries.forEach { option ->
+            val selected = option == currentSort
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOptionSelected(option) }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(option.sortLabelRes()),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+private fun ListingSortOption.sortLabelRes(): Int = when (this) {
+    ListingSortOption.DEFAULT -> R.string.sort_default
+    ListingSortOption.PRICE_ASC -> R.string.sort_price_asc
+    ListingSortOption.PRICE_DESC -> R.string.sort_price_desc
+    ListingSortOption.TITLE_A_Z -> R.string.sort_title_az
+}
+
 @Composable
 private fun ListingsEmptyBlock(
     message: String,
@@ -188,52 +348,6 @@ private fun ListingsEmptyBlock(
             Text(text = stringResource(R.string.action_retry))
         }
     }
-}
-
-@Composable
-private fun ListingsSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit,
-) {
-    val shape = RoundedCornerShape(14.dp)
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        placeholder = {
-            Text(
-                text = stringResource(R.string.listings_search_hint),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Filled.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cd_search_clear),
-                    )
-                }
-            }
-        },
-        singleLine = true,
-        shape = shape,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-        ),
-    )
 }
 
 private fun previewProperty(
@@ -261,6 +375,7 @@ private fun ListingsScreenLoadingPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }
@@ -280,6 +395,7 @@ private fun ListingsScreenErrorPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }
@@ -300,6 +416,7 @@ private fun ListingsScreenEmptyPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }
@@ -322,6 +439,7 @@ private fun ListingsScreenListPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }
@@ -347,6 +465,7 @@ private fun ListingsScreenListDarkPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }
@@ -368,6 +487,7 @@ private fun ListingsScreenSearchMissPreview() {
             onRetry = {},
             onBookmarkClick = {},
             onSearchQueryChange = {},
+            onSortOptionChange = {},
         )
     }
 }

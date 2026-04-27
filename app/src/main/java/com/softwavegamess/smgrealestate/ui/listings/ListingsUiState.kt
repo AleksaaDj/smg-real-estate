@@ -8,4 +8,5 @@ data class ListingsUiState(
     val loadError: String? = null,
     val searchQuery: String = "",
     val remoteListWasEmpty: Boolean = false,
+    val sortOption: ListingSortOption = ListingSortOption.DEFAULT,
 )
