@@ -30,4 +30,11 @@ class AppAnalytics @Inject constructor(
             },
         )
     }
+
+    fun logSortChanged(optionKey: String) {
+        firebase.logEvent(
+            "sort_changed",
+            Bundle().apply { putString("sort_option", optionKey) },
+        )
+    }
 }
