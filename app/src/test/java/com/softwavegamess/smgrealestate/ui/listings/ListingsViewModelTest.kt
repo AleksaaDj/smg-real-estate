@@ -11,11 +11,14 @@ import com.softwavegamess.smgrealestate.domain.model.Price
 import com.softwavegamess.smgrealestate.domain.model.Property
 import com.softwavegamess.smgrealestate.analytics.AppAnalytics
 import com.softwavegamess.smgrealestate.domain.usecase.GetPropertiesUseCase
+import com.softwavegamess.smgrealestate.domain.usecase.ObserveBookmarkedPropertyIdsUseCase
 import com.softwavegamess.smgrealestate.domain.usecase.ToggleBookmarkUseCase
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -54,13 +57,20 @@ class ListingsViewModelTest {
         isBookmarked = false,
     )
 
+    private fun observeBookmarksEmpty(): ObserveBookmarkedPropertyIdsUseCase {
+        val observe = mockk<ObserveBookmarkedPropertyIdsUseCase>()
+        every { observe() } returns MutableStateFlow(emptySet())
+        return observe
+    }
+
     @Test
     fun loadSuccessExposesProperties() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         assertFalse(viewModel.state.value.isLoading)
@@ -72,9 +82,10 @@ class ListingsViewModelTest {
     fun loadFailureSetsNetworkMessage() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.failure(IOException())
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         assertFalse(viewModel.state.value.isLoading)
@@ -88,9 +99,10 @@ class ListingsViewModelTest {
         val response = Response.error<Any>(500, body)
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.failure(HttpException(response))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         assertEquals(context.getString(R.string.listings_error_http), viewModel.state.value.loadError)
@@ -100,10 +112,11 @@ class ListingsViewModelTest {
     fun bookmarkFailureRevertsAndEmitsMessage() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.failure(RuntimeException("db"))
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         viewModel.userMessages.test {
@@ -118,13 +131,18 @@ class ListingsViewModelTest {
     fun bookmarkSuccessKeepsToggledState() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val bookmarkedIds = MutableStateFlow(emptySet<String>())
+        val observe = mockk<ObserveBookmarkedPropertyIdsUseCase>()
+        every { observe() } returns bookmarkedIds
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.success(true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         viewModel.onBookmarkClicked(sampleProperty)
+        // In the real app, Room emits the new bookmark id; the VM derives isBookmarked from that Flow.
+        bookmarkedIds.value = setOf(sampleProperty.id)
         viewModel.state.filter { it.properties.isNotEmpty() && it.properties.single().isBookmarked }
             .first()
 
@@ -137,9 +155,10 @@ class ListingsViewModelTest {
         val b = sampleProperty.copy(id = "2", title = "City studio")
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(a, b))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         viewModel.onSearchQueryChange("studio")
@@ -154,9 +173,10 @@ class ListingsViewModelTest {
     fun loadSuccessEmptyMarksRemoteEmpty() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(emptyList())
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         assertTrue(viewModel.state.value.remoteListWasEmpty)
@@ -167,10 +187,13 @@ class ListingsViewModelTest {
     fun bookmarkWorksWhileSearchActive() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val bookmarkedIds = MutableStateFlow(emptySet<String>())
+        val observe = mockk<ObserveBookmarkedPropertyIdsUseCase>()
+        every { observe() } returns bookmarkedIds
         val toggle = mockk<ToggleBookmarkUseCase>()
         coEvery { toggle(sampleProperty.id) } returns Result.success(true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
         viewModel.onSearchQueryChange("Title")
         viewModel.state
@@ -178,6 +201,7 @@ class ListingsViewModelTest {
             .first()
 
         viewModel.onBookmarkClicked(sampleProperty)
+        bookmarkedIds.value = setOf(sampleProperty.id)
         viewModel.state
             .filter { it.properties.single().isBookmarked }
             .first()
@@ -191,9 +215,10 @@ class ListingsViewModelTest {
         val expensive = sampleProperty.copy(id = "2", title = "B", price = Price(500L, "CHF"))
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(expensive, cheap))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         viewModel.onSortOptionChange(ListingSortOption.PRICE_ASC)
@@ -208,9 +233,10 @@ class ListingsViewModelTest {
     fun sortChangeFiresAnalyticsOnce() = runTest {
         val get = mockk<GetPropertiesUseCase>()
         coEvery { get() } returns Result.success(listOf(sampleProperty))
+        val observe = observeBookmarksEmpty()
         val toggle = mockk<ToggleBookmarkUseCase>(relaxed = true)
 
-        val viewModel = ListingsViewModel(context, get, toggle, analytics)
+        val viewModel = ListingsViewModel(context, get, observe, toggle, analytics)
         viewModel.awaitListingsReady()
 
         viewModel.onSortOptionChange(ListingSortOption.PRICE_DESC)

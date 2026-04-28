@@ -11,6 +11,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 @Singleton
@@ -55,6 +57,9 @@ class PropertyRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    override fun observeBookmarkedPropertyIds(): Flow<Set<String>> =
+        bookmarkDao.observeBookmarkedPropertyIds().map { it.toSet() }
 }
 
 private fun ListingTier.toSortRank(): Int = when (this) {

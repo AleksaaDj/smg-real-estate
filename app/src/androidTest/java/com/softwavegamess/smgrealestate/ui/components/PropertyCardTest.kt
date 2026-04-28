@@ -40,6 +40,7 @@ class PropertyCardTest {
                 PropertyCard(
                     property = sampleProperty(bookmarked = false),
                     onBookmarkClick = {},
+                    onOpenDetails = {},
                 )
             }
         }
@@ -56,6 +57,7 @@ class PropertyCardTest {
                 PropertyCard(
                     property = sampleProperty(bookmarked = true),
                     onBookmarkClick = {},
+                    onOpenDetails = {},
                 )
             }
         }

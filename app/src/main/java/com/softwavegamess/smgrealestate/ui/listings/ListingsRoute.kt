@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,6 +66,7 @@ import com.softwavegamess.smgrealestate.ui.theme.SMGRealEstateTheme
 fun ListingsRoute(
     modifier: Modifier = Modifier,
     viewModel: ListingsViewModel = hiltViewModel(),
+    onOpenDetails: (Property) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -80,6 +82,7 @@ fun ListingsRoute(
         snackbarHostState = snackbarHostState,
         onRetry = viewModel::load,
         onBookmarkClick = viewModel::onBookmarkClicked,
+        onOpenDetails = onOpenDetails,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onSortOptionChange = viewModel::onSortOptionChange,
         modifier = modifier,
@@ -93,6 +96,7 @@ fun ListingsScreen(
     snackbarHostState: SnackbarHostState,
     onRetry: () -> Unit,
     onBookmarkClick: (Property) -> Unit,
+    onOpenDetails: (Property) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSortOptionChange: (ListingSortOption) -> Unit,
     modifier: Modifier = Modifier,
@@ -182,6 +186,7 @@ fun ListingsScreen(
                                         PropertyCard(
                                             property = property,
                                             onBookmarkClick = { onBookmarkClick(property) },
+                                            onOpenDetails = { onOpenDetails(property) },
                                         )
                                     }
                                 }
@@ -203,6 +208,15 @@ private fun ListingsSearchWithSort(
     onSortOptionChange: (ListingSortOption) -> Unit,
 ) {
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    var fieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(query))
+    }
+
+    LaunchedEffect(query) {
+        if (query != fieldValue.text) {
+            fieldValue = fieldValue.copy(text = query)
+        }
+    }
     val shape = RoundedCornerShape(16.dp)
     Row(
         modifier = Modifier
@@ -212,8 +226,13 @@ private fun ListingsSearchWithSort(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
+            value = fieldValue,
+            onValueChange = { next ->
+                fieldValue = next
+                if (next.text != query) {
+                    onQueryChange(next.text)
+                }
+            },
             modifier = Modifier.weight(1f),
             placeholder = {
                 Text(
@@ -261,8 +280,9 @@ private fun ListingsSearchWithSort(
             currentSort = currentSort,
             onOptionSelected = { option ->
                 onSortOptionChange(option)
+                showSortSheet = false
             },
-            onDismiss = { },
+            onDismiss = { showSortSheet = false },
         )
     }
 }
@@ -374,6 +394,7 @@ private fun ListingsScreenLoadingPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
@@ -394,6 +415,7 @@ private fun ListingsScreenErrorPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
@@ -415,6 +437,7 @@ private fun ListingsScreenEmptyPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
@@ -438,6 +461,7 @@ private fun ListingsScreenListPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
@@ -464,6 +488,7 @@ private fun ListingsScreenListDarkPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
@@ -486,6 +511,7 @@ private fun ListingsScreenSearchMissPreview() {
             snackbarHostState = remember { SnackbarHostState() },
             onRetry = {},
             onBookmarkClick = {},
+            onOpenDetails = {},
             onSearchQueryChange = {},
             onSortOptionChange = {},
         )
