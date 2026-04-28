@@ -7,6 +7,7 @@ import com.softwavegamess.smgrealestate.R
 import com.softwavegamess.smgrealestate.analytics.AppAnalytics
 import com.softwavegamess.smgrealestate.domain.model.Property
 import com.softwavegamess.smgrealestate.domain.usecase.GetPropertiesUseCase
+import com.softwavegamess.smgrealestate.domain.usecase.ObserveBookmarkedPropertyIdsUseCase
 import com.softwavegamess.smgrealestate.domain.usecase.ToggleBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -36,6 +37,7 @@ private data class ListingsSearchState(
     val properties: List<Property>,
     val searchQuery: String,
     val sort: ListingSortOption,
+    val bookmarkedIds: Set<String>,
 )
 
 private data class ListingsLoadFlags(
@@ -49,6 +51,7 @@ private data class ListingsLoadFlags(
 class ListingsViewModel @Inject constructor(
     @param:ApplicationContext private val appContext: Context,
     private val getProperties: GetPropertiesUseCase,
+    observeBookmarkedIds: ObserveBookmarkedPropertyIdsUseCase,
     private val toggleBookmark: ToggleBookmarkUseCase,
     private val analytics: AppAnalytics,
 ) : ViewModel() {
@@ -60,18 +63,20 @@ class ListingsViewModel @Inject constructor(
     private val loadError = MutableStateFlow<String?>(null)
     private val remoteListWasEmpty = MutableStateFlow(false)
 
-    // Filter + sort run off the main thread
     val state: StateFlow<ListingsUiState> = combine(
-        combine(loaded, searchQuery, sortOption) { l, q, s ->
-            ListingsSearchState(l, q, s)
+        combine(loaded, searchQuery, sortOption, observeBookmarkedIds()) { l, q, s, bookmarked ->
+            ListingsSearchState(l, q, s, bookmarked)
         },
         combine(isLoading, loadError, remoteListWasEmpty) { loading, err, re ->
             ListingsLoadFlags(loading, err, re)
         },
     ) { search, flags ->
+        val withBookmarks = search.properties.map { p ->
+            p.copy(isBookmarked = search.bookmarkedIds.contains(p.id))
+        }
         val filtered = when {
             flags.isLoading || flags.loadError != null -> emptyList()
-            else -> search.properties.matchingSearch(search.searchQuery)
+            else -> withBookmarks.matchingSearch(search.searchQuery)
         }
         val displayed = filtered.sortedByOption(search.sort)
         ListingsUiState(

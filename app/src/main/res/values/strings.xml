@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">SMG Real Estate</string>
     <string name="screen_listings_title">Listings</string>
+    <string name="screen_details_title">Details</string>
     <string name="action_retry">Retry</string>
     <string name="listings_empty">No listings to show.</string>
     <string name="listings_search_hint">Search by title or address</string>
@@ -17,6 +18,7 @@
     <string name="listings_error_unknown">Couldn\'t load listings.</string>
     <string name="price_on_request">Price on request</string>
     <string name="bookmark_update_failed">Couldn\'t update bookmark.</string>
+    <string name="details_not_found">Listing not found.</string>
     <string name="cd_bookmark_add">Save listing</string>
     <string name="cd_bookmark_remove">Remove saved listing</string>
 </resources>

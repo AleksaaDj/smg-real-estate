@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -48,10 +49,13 @@ import java.util.Locale
 fun PropertyCard(
     property: Property,
     onBookmarkClick: () -> Unit,
+    onOpenDetails: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onOpenDetails() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = CardDefaults.outlinedCardBorder(),
@@ -186,6 +190,7 @@ private fun PropertyCardNotBookmarkedPreview() {
         PropertyCard(
             property = previewSampleProperty(bookmarked = false),
             onBookmarkClick = {},
+            onOpenDetails = {},
             modifier = Modifier.padding(12.dp),
         )
     }
@@ -198,6 +203,7 @@ private fun PropertyCardBookmarkedPreview() {
         PropertyCard(
             property = previewSampleProperty(bookmarked = true),
             onBookmarkClick = {},
+            onOpenDetails = {},
             modifier = Modifier.padding(12.dp),
         )
     }
@@ -213,6 +219,7 @@ private fun PropertyCardLongTitlePreview() {
                 title = "Exceptional waterfront residence with private garden and panoramic alpine views",
             ),
             onBookmarkClick = {},
+            onOpenDetails = {},
             modifier = Modifier.padding(12.dp),
         )
     }
